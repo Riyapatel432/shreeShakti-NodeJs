@@ -7,14 +7,45 @@ const Client = require("../../models/master/Client.model");
 // ======================================================
 exports.getClientDetails = async (req, res) => {
   try {
-    const clients = await Client.find()
+    const page = Number(req.query.page);
+    const limit = Number(req.query.limit);
+    const search = req.query.search?.trim() || "";
+
+    const skip = (page - 1) * limit;
+
+    let filter = {};
+
+    if (search) {
+      filter = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { company_name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          // { phone: { $regex: search, $options: "i" } },
+          { gst_no: { $regex: search, $options: "i" } },
+          { city: { $regex: search, $options: "i" } },
+          { state: { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    const totalRecords = await Client.countDocuments(filter);
+
+    const clients = await Client.find(filter)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate("createdBy", "name email");
 
     return res.status(200).json({
       success: true,
-      count: clients.length,
       data: clients,
+      pagination:{
+        totalRecords,
+        totalPages: Math.ceil(totalRecords / limit),
+        currentPage: page,
+        limit,
+      },
     });
   } catch (error) {
     console.error("Get Clients Error:", error);

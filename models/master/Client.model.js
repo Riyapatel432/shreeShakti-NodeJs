@@ -24,7 +24,7 @@ const clientSchema = new mongoose.Schema(
     },
 
     phone: {
-      type: String,
+      type: Number,
       required: [true, "Phone number is required"],
       match: [/^[0-9]{10}$/, "Phone number must be exactly 10 digits"],
     },
@@ -56,9 +56,8 @@ const clientSchema = new mongoose.Schema(
     },
 
     status: {
-      type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      type: Boolean,
+      default: true,
     },
 
     createdBy: {

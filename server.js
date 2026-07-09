@@ -9,6 +9,13 @@ dotenv.config();
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const clientRoutes = require("./routes/master/client.route");
+const productCategoryRoutes = require("./routes/master/productCategory.route");
+const productRoutes = require("./routes/product/product.route");
+const unitRoutes = require("./routes/master/unit.route");
+const mocRoutes = require("./routes/master/moc.route");
+const priceProductRoutes = require("./routes/price/priceProduct.route");
+const quotationRoutes = require("./routes/quotation/quotation.route");
+const costingSheetRoutes = require("./routes/costingSheet/costingSheet.route");
 const app = express();
 
 // Middleware
@@ -39,6 +46,13 @@ mongoose
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/client", clientRoutes);
+app.use("/api/product-category", productCategoryRoutes);
+app.use("/api/product", productRoutes);
+app.use("/api/unit", unitRoutes);
+app.use("/api/moc", mocRoutes);
+app.use("/api/price", priceProductRoutes);
+app.use("/api/costingSheet",costingSheetRoutes);
+app.use("/api/quotation", quotationRoutes);
 // Health check
 app.get("/", (req, res) =>
   res.json({ status: "Shree Shakti ERP API running ✅" })

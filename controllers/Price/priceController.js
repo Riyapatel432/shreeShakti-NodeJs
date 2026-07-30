@@ -95,13 +95,15 @@ exports.managePriceProductDetails = async (req, res) => {
 
     // ---------------- Duplicate Checks ----------------
     const existingproduct = await PriceProductModel.findOne({
+       product,
+       product_category,
       effective_date: effective_date.toLowerCase()
     });
 
     if (existingproduct) {
       return res.status(400).json({
         success: false,
-        message: "Product already exists",
+        message: "Price already exists for this Product, Product Category and Effective Date",
       });
     }
 
@@ -226,28 +228,33 @@ exports.deletePriceProductDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const PriceProduct = await PriceProductModel.findById(id);
+    console.log("Deleting ID:", id);
 
-    if (!PriceProduct) {
+    const price = await PriceProductModel.findById(id);
+    console.log("Found:", price);
+
+    if (!price) {
       return res.status(404).json({
         success: false,
         message: "PriceProduct not found",
       });
     }
 
-    await PriceProductModel.deleteOne();
+    const result = await PriceProductModel.deleteOne({ _id: id });
+
+    console.log("Delete Result:", result);
 
     return res.status(200).json({
       success: true,
       message: "PriceProduct deleted successfully",
+      result,
     });
   } catch (error) {
-    console.error("Delete PriceProduct Error:", error);
+    console.error(error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to delete PriceProduct",
-      error: error.message,
+      message: error.message,
     });
   }
 };

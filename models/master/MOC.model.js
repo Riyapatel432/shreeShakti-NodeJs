@@ -5,13 +5,16 @@ const MOCSchema = new mongoose.Schema(
     name: {
         type: String,
         required: [true, "MOC is required"],
-        trim:true,
-        unique:true
+        trim:true
     },
 
     status: {
       type: Boolean,
       default: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

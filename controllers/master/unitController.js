@@ -13,7 +13,7 @@ exports.getUnitDetails = async (req, res) => {
      const { status } = req.query;
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let filter = { isDeleted: false };
 
     if (search) {
       filter = {
@@ -70,6 +70,7 @@ exports.manageUnitDetails = async (req, res) => {
 
     const existingUnit = await UnitModel.findOne({
         name: new RegExp(`^${name.trim()}$`, "i"),
+        isDeleted: false,
     });
 
     if (existingUnit) {
@@ -123,6 +124,7 @@ exports.updateUnitDetails = async (req, res) => {
       const unitExists = await UnitModel.findOne({
         name: req.body.name.trim().toLowerCase(),
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (unitExists) {
@@ -200,7 +202,7 @@ exports.deleteUnitDetails = async (req, res) => {
       });
     }
 
-    await UnitModel.findByIdAndDelete(id);
+    await UnitModel.findByIdAndUpdate(id, { isDeleted: true });
 
     return res.status(200).json({
       success: true,

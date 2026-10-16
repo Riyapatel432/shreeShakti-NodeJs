@@ -1,31 +1,27 @@
 const PriceProductModel = require("../../models/Price/Price.model");
-const ProductModel = require("../../models/product/Product.model");
-// ======================================================
-// @desc    Get All PriceProducts
-// @route   GET /api/PriceProduct/get-PriceProduct-details
-// @access  Private
-// ======================================================
+const MOCModel = require("../../models/master/MOC.model");
+
 exports.getPriceProductDetails = async (req, res) => {
   try {
-    const page = Number(req.query.page);
-    const limit = Number(req.query.limit);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
     const search = req.query.search?.trim() || "";
 
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let filter = { isDeleted: false };
 
- if (search) {
-  const products = await ProductModel.find({
-    name: { $regex: search, $options: "i" },
-  }).select("_id");
+    if (search) {
+      const mocs = await MOCModel.find({
+        name: { $regex: search, $options: "i" },
+      }).select("_id");
 
-  const productIds = products.map((p) => p._id);
+      const mocIds = mocs.map((m) => m._id);
 
-  filter = {
-    product: { $in: productIds },
-  };
-}
+      filter = {
+        moc: { $in: mocIds },
+      };
+    }
 
     const totalRecords = await PriceProductModel.countDocuments(filter);
 
@@ -33,21 +29,13 @@ exports.getPriceProductDetails = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-       .populate({
-    path: "product",
-    select: "name moc",
-    populate: {
-      path: "moc",
-      select: "name", // add other fields if needed
-    },
-  })
-      .populate("product_category", "name")
+      .populate({ path: "product", select: "name product_category moc", populate: [ { path: "product_category", select: "name" }, { path: "moc", select: "name" } ] })
       .populate("createdBy", "name email");
 
     return res.status(200).json({
       success: true,
       data: PriceProducts,
-      pagination:{
+      pagination: {
         totalRecords,
         totalPages: Math.ceil(totalRecords / limit),
         currentPage: page,
@@ -56,7 +44,6 @@ exports.getPriceProductDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Get PriceProducts Error:", error);
-
     return res.status(500).json({
       success: false,
       message: "Failed to fetch PriceProducts",
@@ -65,52 +52,39 @@ exports.getPriceProductDetails = async (req, res) => {
   }
 };
 
-// ======================================================
-// @desc    Create PriceProduct
-// @route   POST /api/PriceProduct/manage-PriceProduct-details
-// @access  Private
-// ======================================================
 exports.managePriceProductDetails = async (req, res) => {
   try {
     const {
       product,
-      product_category,
+      moc,
       effective_date,
       current_price,
       status,
     } = req.body;
 
-    // ---------------- Validation ----------------
-    if (
-      !product ||
-      !effective_date ||
-      !current_price ||
-      !product_category
-    ) {
+    if (!product || !moc || !effective_date || !current_price) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "MOC, effective date, and price are required",
       });
     }
 
-    // ---------------- Duplicate Checks ----------------
-    const existingproduct = await PriceProductModel.findOne({
-       product,
-       product_category,
-      effective_date: effective_date.toLowerCase()
+    const existingPrice = await PriceProductModel.findOne({
+      product,
+      effective_date,
+      isDeleted: false,
     });
 
-    if (existingproduct) {
+    if (existingPrice) {
       return res.status(400).json({
         success: false,
-        message: "Price already exists for this Product, Product Category and Effective Date",
+        message: "Price already exists for this Product on this Effective Date",
       });
     }
 
-    // ---------------- Create ----------------
     const PriceProduct = await PriceProductModel.create({
       product,
-      product_category,
+      moc,
       effective_date,
       current_price,
       status,
@@ -119,142 +93,87 @@ exports.managePriceProductDetails = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "PriceProduct created successfully",
+      message: "Price created successfully",
       data: PriceProduct,
     });
   } catch (error) {
-    console.error("Create PriceProduct Error:", error);
-
+    console.error("Create Price Error:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to create PriceProduct",
+      message: "Failed to create Price",
       error: error.message,
     });
   }
 };
 
-// ======================================================
-// @desc    Update PriceProduct
-// @route   PUT /api/PriceProduct/update-PriceProduct-details/:id
-// @access  Private
-// ======================================================
 exports.updatePriceProductDetails = async (req, res) => {
   try {
     const { id } = req.params;
-
-    console.log("Update PriceProduct ID:", id);
+    const { product, moc, effective_date, current_price, status } = req.body;
 
     const PriceProduct = await PriceProductModel.findById(id);
 
     if (!PriceProduct) {
       return res.status(404).json({
         success: false,
-        message: "PriceProduct not found",
+        message: "Price not found",
       });
     }
 
-    // Duplicate email
-    if (req.body.effective_date) {
-      const productExists = await PriceProductModel.findOne({
-        effective_date: req.body.effective_date.trim().toLowerCase(),
+    if (effective_date) {
+      const exists = await PriceProductModel.findOne({
+        effective_date,
+        moc: moc || PriceProduct.moc,
         _id: { $ne: id },
+        isDeleted: false,
       });
 
-      if (productExists) {
+      if (exists) {
         return res.status(400).json({
           success: false,
-          message: "product already exists",
+          message: "A price for this MOC on this date already exists",
         });
       }
     }
 
-    
-
     const updatedPriceProduct = await PriceProductModel.findByIdAndUpdate(
       id,
       {
-        ...req.body,
+        moc, effective_date, current_price, status,
         updatedBy: req.admin?._id || req.user?._id,
       },
-      {
-        new: true,
-        runValidators: true,
-      }
+      { new: true, runValidators: true }
     );
 
     return res.status(200).json({
       success: true,
-      message: "PriceProduct updated successfully",
+      message: "Price updated successfully",
       data: updatedPriceProduct,
     });
-
   } catch (error) {
-    console.error("Update PriceProduct Error:", error);
-
-    // Handle Mongoose validation errors
-    if (error.product === "ValidationError") {
-      const firstField = Object.keys(error.errors)[0];
-      return res.status(400).json({
-        success: false,
-        field: firstField,
-        message: error.errors[firstField]?.message || "Validation failed",
-      });
-    }
-
-    // Handle duplicate key errors (unique index violation)
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({
-        success: false,
-        field: field,
-        message: `${field} already exists`,
-      });
-    }
-
+    console.error("Update Price Error:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to update PriceProduct",
+      message: "Failed to update Price",
       error: error.message,
     });
   }
 };
 
-// ======================================================
-// @desc    Delete PriceProduct
-// @route   DELETE /api/PriceProduct/delete-PriceProduct-details/:id
-// @access  Private
-// ======================================================
 exports.deletePriceProductDetails = async (req, res) => {
   try {
     const { id } = req.params;
-
-    console.log("Deleting ID:", id);
-
     const price = await PriceProductModel.findById(id);
-    console.log("Found:", price);
 
     if (!price) {
-      return res.status(404).json({
-        success: false,
-        message: "PriceProduct not found",
-      });
+      return res.status(404).json({ success: false, message: "Price not found" });
     }
 
-    const result = await PriceProductModel.deleteOne({ _id: id });
+    await PriceProductModel.findByIdAndUpdate(id, { isDeleted: true });
 
-    console.log("Delete Result:", result);
-
-    return res.status(200).json({
-      success: true,
-      message: "PriceProduct deleted successfully",
-      result,
-    });
+    return res.status(200).json({ success: true, message: "Price deleted successfully" });
   } catch (error) {
     console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

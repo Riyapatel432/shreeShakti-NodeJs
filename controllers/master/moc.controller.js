@@ -13,7 +13,7 @@ exports.getMOCDetails = async (req, res) => {
  const { status } = req.query;
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let filter = { isDeleted: false };
   if (status !== undefined) {
       filter.status = status === "true";
     }
@@ -70,6 +70,7 @@ exports.manageMOCDetails = async (req, res) => {
 
     const existingMOC = await MOCModel.findOne({
        name: new RegExp(`^${name.trim()}$`, "i"),
+       isDeleted: false,
     });
 
     if (existingMOC) {
@@ -123,6 +124,7 @@ exports.updateMOCDetails = async (req, res) => {
       const MOCExists = await MOCModel.findOne({
         name: req.body.name.trim().toLowerCase(),
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (MOCExists) {
@@ -200,7 +202,7 @@ exports.deleteMOCDetails = async (req, res) => {
       });
     }
 
-    await MOCModel.findByIdAndDelete(id);
+    await MOCModel.findByIdAndUpdate(id, { isDeleted: true });
 
     return res.status(200).json({
       success: true,

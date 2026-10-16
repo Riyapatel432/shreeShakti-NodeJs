@@ -45,7 +45,8 @@ const updateProfile = async (req, res) => {
       // Check if email is already taken by another admin
       const emailTaken = await Admin.findOne({
         email: email.toLowerCase(),
-        _id: { $ne: req.admin._id }
+        _id: { $ne: req.admin._id },
+        isDeleted: false
       });
 
       if (emailTaken) {

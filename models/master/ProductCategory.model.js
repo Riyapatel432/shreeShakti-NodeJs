@@ -6,7 +6,6 @@ const ProductCategorySchema = new mongoose.Schema(
       type: String,
       required: [true, "ProductCategory name is required"],
       trim: true,
-      unique: true,
     },
 
    
@@ -19,6 +18,11 @@ const ProductCategorySchema = new mongoose.Schema(
     status: {
       type: Boolean,
       default: true,
+    },
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
 
     createdBy: {

@@ -6,7 +6,6 @@ const ProductSchema = new mongoose.Schema(
       type: String,
       required: [true, "Product name is required"],
       trim: true,
-      unique: true,
     },
     product_category: {
       type: mongoose.Schema.Types.ObjectId,
@@ -38,6 +37,10 @@ const ProductSchema = new mongoose.Schema(
     status: {
       type: Boolean,
       default: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
 
     createdBy: {

@@ -5,13 +5,16 @@ const UnitSchema = new mongoose.Schema(
     name: {
         type: String,
         required: [true, "Unit is required"],
-        trim:true,
-        unique:true
+        trim:true
     },
 
     status: {
       type: Boolean,
       default: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

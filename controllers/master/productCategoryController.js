@@ -13,7 +13,7 @@ exports.getProductCategoryDetails = async (req, res) => {
     const { status } = req.query;
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let filter = { isDeleted: false };
     if (status !== undefined) {
       filter.status = status === "true";
     }
@@ -87,6 +87,7 @@ exports.manageProductCategoryDetails = async (req, res) => {
     // });
 const existingName = await ProductCategoryModel.findOne({
   name: new RegExp(`^${name.trim()}$`, "i"),
+  isDeleted: false,
 });
     if (existingName) {
       return res.status(400).json({
@@ -144,6 +145,7 @@ exports.updateProductCategoryDetails = async (req, res) => {
       const nameExists = await ProductCategoryModel.findOne({
         name: req.body.name.toLowerCase(),
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (nameExists) {
@@ -223,7 +225,7 @@ exports.deleteProductCategoryDetails = async (req, res) => {
       });
     }
 
-    await ProductCategoryModel.deleteOne();
+    await ProductCategoryModel.findByIdAndUpdate(id, { isDeleted: true });
 
     return res.status(200).json({
       success: true,

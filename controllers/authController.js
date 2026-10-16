@@ -5,7 +5,7 @@ const Admin = require('../models/Admin');
 const LoginLog = require('../models/LoginLog');
 const PasswordResetToken = require('../models/PasswordResetToken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey_shreeshakti';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // ─────────────────────────────────────────────────────────────
 // @desc    Admin Login
@@ -25,7 +25,7 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const admin = await Admin.findOne({ email: email.toLowerCase(), isDeleted: { $ne: true } });
   console.log("admin===>", admin);
 
     if (!admin) {
@@ -104,7 +104,7 @@ const forgotPassword = async (req, res) => {
   try {
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const admin = await Admin.findOne({ email: email.toLowerCase(), isDeleted: false });
     if (!admin) {
       // Security: always send success response even if email not found
       return res.json({ message: 'If that email exists, a reset token has been generated.' });

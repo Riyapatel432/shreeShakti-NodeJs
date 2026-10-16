@@ -13,7 +13,7 @@ exports.getProductDetails = async (req, res) => {
     const { status } = req.query;
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let filter = { isDeleted: false };
 
   if (status !== undefined) {
       filter.status = status === "true";
@@ -97,6 +97,7 @@ exports.manageProductDetails = async (req, res) => {
     const existingName = await ProductModel.findOne({
       name: new RegExp(`^${name.trim()}$`, "i"),
       product_category:product_category,
+      isDeleted: false,
     });
 
     if (existingName) {
@@ -159,7 +160,7 @@ exports.updateProductDetails = async (req, res) => {
       const nameExists = await ProductModel.findOne({
         name: req.body.name.trim().toLowerCase(),
         product_category: req.body.product_category,
-
+        isDeleted: false,
         // _id: { $ne: id },
       });
 
@@ -240,7 +241,7 @@ exports.deleteProductDetails = async (req, res) => {
       });
     }
 
-    await ProductModel.deleteOne();
+    await ProductModel.findByIdAndUpdate(id, { isDeleted: true });
 
     return res.status(200).json({
       success: true,

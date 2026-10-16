@@ -1,4 +1,7 @@
 const QuotationModel = require("../../models/quotation/Quotation.model");
+const CostingSheetModel = require("../../models/costingSheet/CostingSheet.model");
+const PriceProductModel = require("../../models/Price/Price.model");
+const puppeteer = require("puppeteer");
 
 // ======================================================
 // @desc    Get All Quotations
@@ -10,17 +13,20 @@ exports.getQuotationDetails = async (req, res) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search?.trim() || "";
+    const clientId = req.query.clientId?.trim() || "";
 
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let filter = { isDeleted: false };
+    
+    if (clientId) {
+      filter.client = clientId;
+    }
 
     if (search) {
-      filter = {
-        quotation_no: {
-          $regex: search,
-          $options: "i",
-        },
+      filter.quotation_no = {
+        $regex: search,
+        $options: "i",
       };
     }
 
@@ -33,7 +39,7 @@ exports.getQuotationDetails = async (req, res) => {
       .populate("client", "name")
       .populate("product", "name")
       .populate("product_category", "name")
-      .populate("price", "current_price")
+      .populate("sourceRateId", "current_price")
       .populate("createdBy", "name email");
 
     return res.status(200).json({
@@ -69,31 +75,70 @@ exports.manageQuotationDetails = async (req, res) => {
       client,
       product,
       product_category,
-      price,
+      sourceRateId,
+      costingSheet,
+      techSpec,
       snapshot,
       tax,
+      tax_type,
+      discount,
       grand_total,
       status,
     } = req.body;
 
-    if (
-      !quotation_no ||
-      !client ||
-      !product ||
-      !product_category ||
-      !price ||
-      snapshot == null ||
-      tax == null ||
-      grand_total == null
-    ) {
+    if (!quotation_no || !client) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "Quotation number and client are required",
       });
+    }
+
+    let finalSnapshot = snapshot;
+    let finalGrandTotal = grand_total;
+    let snapRate = null;
+    let snapQty = req.body.qty || 1;
+    let snapMocName = null;
+
+    if (costingSheet) {
+      const sheet = await CostingSheetModel.findById(costingSheet).populate("line_items.moc", "name");
+      if (sheet) {
+        finalSnapshot = {
+          items: sheet.line_items.map(item => ({
+            description: item.moc?.name || "Material",
+            qty: item.qty,
+            rate: item.rate,
+            amount: item.amount
+          })),
+          subtotal: sheet.subtotal,
+          wastage: sheet.wastage_percent,
+          freight: sheet.freight,
+          grand_total: sheet.total
+        };
+        finalGrandTotal = finalSnapshot.grand_total;
+      }
+    } else if (sourceRateId) {
+      const priceDoc = await PriceProductModel.findById(sourceRateId).populate("moc", "name");
+      if (priceDoc) {
+        snapRate = priceDoc.current_price;
+        snapMocName = priceDoc.moc?.name || "Standard MOC";
+        if (!finalSnapshot || !finalSnapshot.items || finalSnapshot.items.length === 0) {
+           finalSnapshot = {
+             items: [{
+               description: snapMocName,
+               qty: snapQty,
+               rate: snapRate,
+               amount: snapQty * snapRate
+             }],
+             subtotal: snapQty * snapRate,
+             grand_total: finalGrandTotal || (snapQty * snapRate)
+           };
+        }
+      }
     }
 
     const existingQuotation = await QuotationModel.findOne({
       quotation_no,
+      isDeleted: false,
     });
 
     if (existingQuotation) {
@@ -108,10 +153,18 @@ exports.manageQuotationDetails = async (req, res) => {
       client,
       product,
       product_category,
-      price,
-      snapshot,
+      sourceRateId,
+      costingSheet,
+      techSpec,
+      snapshot: finalSnapshot,
       tax,
-      grand_total,
+      tax_type,
+      discount,
+      grand_total: finalGrandTotal,
+      qty: snapQty,
+      snapshottedRate: snapRate,
+      snapshottedQty: snapQty,
+      snapshottedMocName: snapMocName,
       status,
       createdBy: req.admin?._id || req.user?._id,
     });
@@ -154,6 +207,7 @@ exports.updateQuotationDetails = async (req, res) => {
       const exists = await QuotationModel.findOne({
         quotation_no: req.body.quotation_no,
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (exists) {
@@ -164,12 +218,33 @@ exports.updateQuotationDetails = async (req, res) => {
       }
     }
 
+    let updateData = { ...req.body, updatedBy: req.admin?._id || req.user?._id };
+    
+    if (req.body.sourceRateId && !req.body.costingSheet && (!quotation.snapshottedRate || req.body.sourceRateId !== quotation.sourceRateId?.toString())) {
+      const priceDoc = await PriceProductModel.findById(req.body.sourceRateId).populate("moc", "name");
+      if (priceDoc) {
+        updateData.snapshottedRate = priceDoc.current_price;
+        updateData.snapshottedMocName = priceDoc.moc?.name || "Standard MOC";
+        updateData.snapshottedQty = req.body.qty || quotation.qty || 1;
+        
+        if (!req.body.snapshot || !req.body.snapshot.items || req.body.snapshot.items.length === 0) {
+           updateData.snapshot = {
+             items: [{
+               description: updateData.snapshottedMocName,
+               qty: updateData.snapshottedQty,
+               rate: updateData.snapshottedRate,
+               amount: updateData.snapshottedQty * updateData.snapshottedRate
+             }],
+             subtotal: updateData.snapshottedQty * updateData.snapshottedRate,
+             grand_total: req.body.grand_total || (updateData.snapshottedQty * updateData.snapshottedRate)
+           };
+        }
+      }
+    }
+
     const updatedQuotation = await QuotationModel.findByIdAndUpdate(
       id,
-      {
-        ...req.body,
-        updatedBy: req.admin?._id || req.user?._id,
-      },
+      updateData,
       {
         new: true,
         runValidators: true,
@@ -230,7 +305,7 @@ exports.deleteQuotationDetails = async (req, res) => {
       });
     }
 
-    await QuotationModel.findByIdAndDelete(id);
+    await QuotationModel.findByIdAndUpdate(id, { isDeleted: true });
 
     return res.status(200).json({
       success: true,
@@ -242,6 +317,116 @@ exports.deleteQuotationDetails = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to delete quotation",
+      error: error.message,
+    });
+  }
+};
+
+// ======================================================
+// @desc    Export Quotation PDF
+// @route   GET /api/Quotation/export-pdf/:id
+// @access  Private
+// ======================================================
+exports.exportQuotationPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const quotation = await QuotationModel.findById(id)
+      .populate("client", "name company_name email phone address city state gst_no")
+      .populate("product", "name")
+      .populate("techSpec");
+
+    if (!quotation) {
+      return res.status(404).json({ success: false, message: "Quotation not found" });
+    }
+
+    // Generate HTML for PDF
+    const client = quotation.client;
+    const snap = quotation.snapshot;
+    
+    let itemsHtml = "";
+    if (snap && snap.items && snap.items.length > 0) {
+      snap.items.forEach(item => {
+        itemsHtml += `<tr>
+          <td>${item.description}</td>
+          <td>${item.qty}</td>
+          <td>${item.rate}</td>
+          <td>${item.amount}</td>
+        </tr>`;
+      });
+    } else if (quotation.snapshottedRate) {
+      itemsHtml += `<tr>
+        <td>${quotation.snapshottedMocName || "Product"}</td>
+        <td>${quotation.snapshottedQty || quotation.qty || 1}</td>
+        <td>${quotation.snapshottedRate}</td>
+        <td>${(quotation.snapshottedQty || quotation.qty || 1) * quotation.snapshottedRate}</td>
+      </tr>`;
+    }
+
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+            h1 { color: #0056b3; }
+            .header { border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px; }
+            .details { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f4f4f4; }
+            .totals { text-align: right; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Quotation #${quotation.quotation_no}</h1>
+            <p>Date: ${new Date(quotation.createdAt).toLocaleDateString()}</p>
+          </div>
+          <div class="details">
+            <h3>Bill To:</h3>
+            <p><strong>${client?.company_name || 'N/A'}</strong><br/>
+            ${client?.name || ''}<br/>
+            ${client?.address || ''}, ${client?.city || ''}<br/>
+            GST: ${client?.gst_no || 'N/A'}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Rate (₹)</th>
+                <th>Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="totals">
+            ${snap?.subtotal ? `<p>Subtotal: ₹${snap.subtotal}</p>` : ''}
+            <p><strong>Grand Total: ₹${quotation.grand_total}</strong></p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    await browser.close();
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Quotation_${quotation.quotation_no}.pdf"`
+    });
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Export PDF Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate PDF",
       error: error.message,
     });
   }

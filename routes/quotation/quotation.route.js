@@ -9,6 +9,7 @@ router.get('/get-quotation-details',protect, quotationController.getQuotationDet
 router.post('/manage-quotation-details', protect, quotationController.manageQuotationDetails);
 router.put('/update-quotation-details/:id',protect, quotationController.updateQuotationDetails);
 router.delete('/delete-quotation-details/:id', protect, quotationController.deleteQuotationDetails);
+router.get('/export-pdf/:id', protect, quotationController.exportQuotationPDF);
 
 
 module.exports = router;

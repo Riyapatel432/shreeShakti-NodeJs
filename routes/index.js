@@ -12,11 +12,13 @@ const mocRoutes = require("./master/moc.route");
 const priceProductRoutes = require("./price/priceProduct.route");
 const costingSheetRoutes = require("./costingSheet/costingSheet.route");
 const quotationRoutes = require("./quotation/quotation.route");
+const userRoutes = require("./master/userRoutes");
 
 // Map routes to their respective endpoints
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/client", clientRoutes);
+router.use("/project", require("./master/project.route"));
 router.use("/product-category", productCategoryRoutes);
 router.use("/product", productRoutes);
 router.use("/unit", unitRoutes);
@@ -24,5 +26,12 @@ router.use("/moc", mocRoutes);
 router.use("/price", priceProductRoutes);
 router.use("/costingSheet", costingSheetRoutes);
 router.use("/quotation", quotationRoutes);
+router.use("/user", userRoutes);
+router.use("/material-category", require("./master/materialCategory.route"));
+router.use("/material", require("./master/material.route"));
+router.use("/standards", require("./master/standards.route"));
+router.use("/tech-spec", require("./techSpec/techSpec.route"));
+router.use("/purchase-order", require("./purchase/purchaseOrder.route"));
+router.use("/goods-receipt", require("./purchase/goodsReceipt.route"));
 
 module.exports = router;

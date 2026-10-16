@@ -13,7 +13,17 @@ exports.getClientDetails = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    const type = req.query.type;
+
+    let filter = { isDeleted: false };
+
+    if (type === "vendor") {
+      filter.isVendor = true;
+    } else if (type === "client") {
+      // For backwards compatibility, a client is either explicitly isClient true, 
+      // or isVendor is not true (legacy unmigrated records).
+      filter.$or = [{ isClient: true }, { isVendor: { $ne: true } }];
+    }
 
     if (search) {
       filter = {
@@ -75,6 +85,8 @@ exports.manageClientDetails = async (req, res) => {
       city,
       state,
       status,
+      isClient,
+      isVendor,
     } = req.body;
 
     // ---------------- Validation ----------------
@@ -97,6 +109,7 @@ exports.manageClientDetails = async (req, res) => {
     // ---------------- Duplicate Checks ----------------
     const existingEmail = await Client.findOne({
       email: email.toLowerCase(),
+      isDeleted: false,
     });
 
     if (existingEmail) {
@@ -108,6 +121,7 @@ exports.manageClientDetails = async (req, res) => {
 
     const existingGST = await Client.findOne({
       gst_no: gst_no.toUpperCase(),
+      isDeleted: false,
     });
 
     if (existingGST) {
@@ -119,6 +133,7 @@ exports.manageClientDetails = async (req, res) => {
 
     const existingCompany = await Client.findOne({
       company_name,
+      isDeleted: false,
     });
 
     if (existingCompany) {
@@ -139,6 +154,8 @@ exports.manageClientDetails = async (req, res) => {
       city,
       state,
       status,
+      isClient: isClient !== undefined ? isClient : true,
+      isVendor: isVendor !== undefined ? isVendor : false,
       createdBy: req.admin?._id || req.user?._id,
     });
 
@@ -183,6 +200,7 @@ exports.updateClientDetails = async (req, res) => {
       const emailExists = await Client.findOne({
         email: req.body.email.toLowerCase(),
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (emailExists) {
@@ -198,6 +216,7 @@ exports.updateClientDetails = async (req, res) => {
       const gstExists = await Client.findOne({
         gst_no: req.body.gst_no.toUpperCase(),
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (gstExists) {
@@ -213,6 +232,7 @@ exports.updateClientDetails = async (req, res) => {
       const companyExists = await Client.findOne({
         company_name: req.body.company_name,
         _id: { $ne: id },
+        isDeleted: false,
       });
 
       if (companyExists) {
@@ -290,7 +310,7 @@ exports.deleteClientDetails = async (req, res) => {
       });
     }
 
-    await client.deleteOne();
+    await Client.findByIdAndUpdate(id, { isDeleted: true });
 
     return res.status(200).json({
       success: true,

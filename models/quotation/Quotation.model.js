@@ -5,8 +5,7 @@ const QuotationSchema = new mongoose.Schema(
    
     quotation_no: {
       type: Number,
-      required:true,
-      unique:true
+      required:true
     },
     client: {
       type: mongoose.Schema.Types.ObjectId,
@@ -18,23 +17,44 @@ const QuotationSchema = new mongoose.Schema(
       ref: "Product",
       required: [true, "Product is required"], 
     },
-       product_category: {
+    product_category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product-Category",
-      required: [true, "Product Category is required"], 
     },
-    price: {
+    sourceRateId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "price-Product",
-      required: [true, "Price is required"], 
     },
+    costingSheet: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "costing-sheet",
+    },
+    techSpec: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TechSpec",
+    },
+    snapshot: {
+      items: [{
+        description: String,
+        qty: Number,
+        rate: Number,
+        amount: Number
+      }],
+      subtotal: Number,
+      wastage: Number,
+      freight: Number,
+      grand_total: Number
+    },
+    snapshottedRate: { type: Number },
+    snapshottedQty: { type: Number },
+    snapshottedMocName: { type: String },
     qty: {
       type: Number,
-      required:true
+      required: false
     },
     discount: {
       type: Number,
-      required:true
+      required: false
     },
     tax_type: {
       type: String,
@@ -51,6 +71,10 @@ const QuotationSchema = new mongoose.Schema(
     status: {
       type: Boolean,
       default: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -6,6 +6,10 @@ const cookieParser = require("cookie-parser");
 
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET is not defined in environment variables.");
+  process.exit(1);
+}
 const apiRoutes = require("./routes");
 const app = express();
 
@@ -19,6 +23,14 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Disable caching for all API responses to prevent stale data issues
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 
 // MongoDB connection
 mongoose

@@ -1,53 +1,64 @@
 const mongoose = require("mongoose");
 
-const LineItemSchema = new mongoose.Schema({
-  srNo: { type: Number },
-  description: { type: String },
-  moc: { type: mongoose.Schema.Types.ObjectId, ref: "MOC" },
-  dimensions: {
+const CostingSheetSchema = new mongoose.Schema(
+  {
+    product_category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product-Category",
+      required: [true, "Product Category is required"], 
+    },
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: [true, "Product is required"], 
+    },
+    moc: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MOC",
+      required: true,
+    },
+
+    dimensions: {
     od: { type: Number, default: 0 },
     id: { type: Number, default: 0 },
     l: { type: Number, default: 0 },
     w: { type: Number, default: 0 },
     thk: { type: Number, default: 0 },
-    nos: { type: Number, default: 1 },
-    std: { type: Number, default: 0 }
-  },
-  qty: { type: Number, required: true },
-  unitWeight: { type: Number, default: 0 },
-  rate: { type: Number, required: true },
-  amount: { type: Number, required: true }
-});
-
-const CostingSheetSchema = new mongoose.Schema(
-  {
-    client: { type: mongoose.Schema.Types.ObjectId, ref: "Client" },
-    project: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
-    product_category: { 
-      type: String, 
-      enum: ['StorageTank', 'PressureVessel', 'HeatExchanger', 'Condenser', 'Reactor'],
-      required: true
+    nos: { type: Number, default: 0 },
+    std: { type: Number, default: 0 },
     },
-    revision_number: { type: Number, default: 0 },
-    status: { type: String, enum: ['Draft', 'Final', 'Superseded'], default: 'Draft' },
-
-    design_inputs: { type: mongoose.Schema.Types.Mixed, default: {} },
-
-    line_items: [LineItemSchema],
-
-    subtotal: { type: Number, default: 0 },
-    wastagePercent: { type: Number, default: 0 },
-    wastageAmount: { type: Number, default: 0 },
-    labourConsumablesPercent: { type: Number, default: 0 },
-    labourConsumablesAmount: { type: Number, default: 0 },
-    freightAmount: { type: Number, default: 0 },
-    ndtInspectionAmount: { type: Number, default: 0 },
-    grandTotal: { type: Number, default: 0 },
-
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
-    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    qty: {
+      type: Number,
+      required: [true, "Qty is required"],
+      min: [0, "Qty cannot be negative"],
+    },
+    rate: {
+      type: Number,
+      required: [true, "Rate is required"],
+      min: [0, "Rate cannot be negative"],
+    },
+    amount: {
+      type: Number,
+      required: [true, "Rate is required"],
+      min: [0, "Rate cannot be negative"],
+    },
+    status: {
+      type: Boolean,
+      default: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    versionKey: false,
+  }
 );
 
 module.exports = mongoose.model("costing-sheet", CostingSheetSchema);

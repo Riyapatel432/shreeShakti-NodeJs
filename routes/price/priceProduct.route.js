@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const priceController = require("../../controllers/price/priceController");
+const priceController = require("../../controllers/Price/priceController");
 const { protect } = require('../../middleware/authMiddleware');
 
 console.log("price product routes loaded");

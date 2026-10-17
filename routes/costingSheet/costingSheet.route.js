@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
-const costingSheetController = require("../../controllers/costingSheet/costingSheetController");
-console.log("price product routes loaded");
+const costingSheetController = require("../../controllers/CostingSheet/costingSheetController");
+console.log("costing sheet routes loaded");
 // All routes require JWT
 router.get('/get-costing-sheet-details',protect, costingSheetController.getCostingSheetDetails);
 router.post('/manage-costing-sheet-details', protect, costingSheetController.manageCostingSheetDetails);

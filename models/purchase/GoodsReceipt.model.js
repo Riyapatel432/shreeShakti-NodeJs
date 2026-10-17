@@ -22,7 +22,7 @@ const goodsReceiptSchema = new mongoose.Schema(
       {
         material: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Material",
+          ref: "Product",
           required: true,
         },
         qtyReceived: {

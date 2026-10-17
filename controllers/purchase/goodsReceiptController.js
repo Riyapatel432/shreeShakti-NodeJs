@@ -1,7 +1,5 @@
 const GoodsReceipt = require("../../models/purchase/GoodsReceipt.model");
 const PurchaseOrder = require("../../models/purchase/PurchaseOrder.model");
-const Material = require("../../models/master/Material.model");
-const StockLedger = require("../../models/master/StockLedger.model");
 
 // ======================================================
 // @desc    Get All Goods Receipts (Optionally by PO)
@@ -20,7 +18,7 @@ exports.getGoodsReceipts = async (req, res) => {
     const receipts = await GoodsReceipt.find(filter)
       .sort({ createdAt: -1 })
       .populate("purchaseOrder", "poNumber")
-      .populate("lineItems.material", "materialCode description")
+      .populate("lineItems.material", "name description")
       .populate("receivedBy", "name email");
 
     return res.status(200).json({ success: true, data: receipts });
@@ -68,39 +66,7 @@ exports.createGoodsReceipt = async (req, res) => {
       receivedBy: req.admin?._id || req.user?._id,
     });
 
-    // 4. Critical Stock Integration - Write to Stock Ledger & Update Material Stock
-    for (let item of lineItems) {
-      const qtyReceived = Number(item.qtyReceived);
-      if (qtyReceived > 0) {
-        // Find and increment material stock atomically
-        const updatedMaterial = await Material.findOneAndUpdate(
-          { _id: item.material, isDeleted: false },
-          { 
-            $inc: { currentStock: qtyReceived },
-            $set: { updatedBy: req.admin?._id || req.user?._id }
-          },
-          { new: true }
-        );
-
-        if (updatedMaterial) {
-          // Write Immutable Audit Trail
-          await StockLedger.create({
-            material: updatedMaterial._id,
-            transactionType: "IN",
-            quantity: qtyReceived,
-            referenceType: "Purchase",
-            referenceId: grn._id,
-            balanceAfter: updatedMaterial.currentStock,
-            remarks: `Received against PO ${po.poNumber}`,
-            performedBy: req.admin?._id || req.user?._id
-          });
-        }
-      }
-    }
-
-    // 5. Update PO Status
-    // A robust system would sum total ordered vs total historically received across all GRNs.
-    // Here we will transition to Partially Received, unless specified otherwise.
+    // 4. Update PO Status
     po.status = "Partially Received";
     await po.save();
 

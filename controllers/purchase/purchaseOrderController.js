@@ -63,7 +63,7 @@ exports.getPurchaseOrderById = async (req, res) => {
 
     const purchaseOrder = await PurchaseOrder.findOne({ _id: id, isDeleted: false })
       .populate("vendor", "name company_name email phone gst_no address city state")
-      .populate("lineItems.material", "materialCode description unitRate")
+      .populate("lineItems.material", "name description moc unit")
       .populate("lineItems.uom", "name")
       .populate("createdBy", "name email")
       .populate("approvedBy", "name email");

@@ -27,8 +27,6 @@ router.use("/price", priceProductRoutes);
 router.use("/costingSheet", costingSheetRoutes);
 router.use("/quotation", quotationRoutes);
 router.use("/user", userRoutes);
-router.use("/material-category", require("./master/materialCategory.route"));
-router.use("/material", require("./master/material.route"));
 router.use("/standards", require("./master/standards.route"));
 router.use("/tech-spec", require("./techSpec/techSpec.route"));
 router.use("/purchase-order", require("./purchase/purchaseOrder.route"));

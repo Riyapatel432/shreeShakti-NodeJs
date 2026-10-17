@@ -14,12 +14,13 @@ const apiRoutes = require("./routes");
 const app = express();
 
 // Middleware
-app.use(
-  cors({
-    origin: "http://localhost:5173", // React app URL
-    credentials: true,              // Allow cookies
-  })
-);
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(cookieParser());

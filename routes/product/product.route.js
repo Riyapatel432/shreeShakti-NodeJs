@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const productController = require("../../controllers/product/productController");
+const productController = require("../../controllers/Product/productController");
 const { protect } = require('../../middleware/authMiddleware');
 
 console.log("product  routes loaded");

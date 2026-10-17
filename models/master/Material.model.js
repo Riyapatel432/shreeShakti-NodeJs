@@ -92,14 +92,13 @@ MaterialSchema.set('toJSON', { virtuals: true });
 MaterialSchema.set('toObject', { virtuals: true });
 
 // Pre-save validation backup
-MaterialSchema.pre('save', function(next) {
+MaterialSchema.pre('save', function() {
   if (this.currentStock < 0) {
-    return next(new Error('Current stock cannot be negative'));
+    throw new Error('Current stock cannot be negative');
   }
   if (this.minStockLevel < 0) {
-    return next(new Error('Min stock level cannot be negative'));
+    throw new Error('Min stock level cannot be negative');
   }
-  next();
 });
 
 module.exports = mongoose.model("Material", MaterialSchema);

@@ -50,28 +50,30 @@ exports.generateFromCostingSheet = async (req, res) => {
       return res.status(400).json({ success: false, message: "Costing Sheet ID is required" });
     }
 
-    const sheet = await CostingSheet.findById(costingSheetId).populate("line_items.moc");
+    const sheet = await CostingSheet.findById(costingSheetId)
+      .populate("product_category")
+      .populate("product")
+      .populate("moc");
+
     if (!sheet) {
       return res.status(404).json({ success: false, message: "Costing Sheet not found" });
     }
 
-    // Try to derive a primary MOC from the line items (e.g., the first or most prominent one)
-    let primaryMoc = "";
-    if (sheet.line_items && sheet.line_items.length > 0) {
+    // Try to derive primary MOC from sheet.moc or line items
+    let primaryMoc = sheet.moc?.name || "";
+    if (!primaryMoc && sheet.line_items && sheet.line_items.length > 0) {
       const mocNames = sheet.line_items.map(item => item.moc?.name).filter(Boolean);
-      // Assuming the first item is often the primary shell/body material
       if (mocNames.length > 0) primaryMoc = mocNames[0];
     }
 
-    // Map design inputs to category details directly (assuming similar structure)
+    const categoryName = sheet.product_category?.name || sheet.product_category || "General";
     let categoryDetails = sheet.design_inputs || {};
 
-    const newSpec = await TechSpec.create({
+    const newSpecDoc = await TechSpec.create({
       costingSheet: sheet._id,
-      client: sheet.client,
-      project: sheet.project,
-      product_category: sheet.product_category,
-      
+      client: sheet.client || null,
+      project: sheet.project || null,
+      product_category: categoryName,
       moc: {
         shell: primaryMoc,
         head: primaryMoc,
@@ -80,6 +82,11 @@ exports.generateFromCostingSheet = async (req, res) => {
       categoryDetails: categoryDetails,
       createdBy: req.admin?._id || req.user?._id
     });
+
+    const newSpec = await TechSpec.findById(newSpecDoc._id)
+      .populate("client", "company_name name email phone address")
+      .populate("project", "projectName name")
+      .populate("costingSheet");
 
     res.status(201).json({ success: true, data: newSpec });
   } catch (error) {
@@ -113,7 +120,8 @@ exports.updateTechSpec = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     )
-    .populate("client", "company_name")
+    .populate("client", "company_name name")
+    .populate("project", "projectName name")
     .populate("costingSheet", "product_category");
 
     res.status(200).json({ success: true, data: updated });

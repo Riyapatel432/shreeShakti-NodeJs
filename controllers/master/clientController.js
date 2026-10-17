@@ -26,7 +26,7 @@ exports.getClientDetails = async (req, res) => {
     }
 
     if (search) {
-      filter = {
+      const searchCondition = {
         $or: [
           { name: { $regex: search, $options: "i" } },
           { company_name: { $regex: search, $options: "i" } },
@@ -37,6 +37,18 @@ exports.getClientDetails = async (req, res) => {
           { state: { $regex: search, $options: "i" } },
         ],
       };
+
+      if (filter.$or) {
+        filter = {
+          $and: [
+            { isDeleted: false },
+            { $or: filter.$or },
+            searchCondition,
+          ]
+        };
+      } else {
+        filter.$and = [searchCondition];
+      }
     }
 
     const totalRecords = await Client.countDocuments(filter);

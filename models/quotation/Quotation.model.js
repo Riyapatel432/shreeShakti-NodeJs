@@ -4,8 +4,9 @@ const QuotationSchema = new mongoose.Schema(
   {
    
     quotation_no: {
-      type: Number,
-      required:true
+      type: String,
+      required: true,
+      trim: true
     },
     client: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,11 +16,12 @@ const QuotationSchema = new mongoose.Schema(
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
-      required: [true, "Product is required"], 
+      required: false,
     },
     product_category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product-Category",
+      required: false,
     },
     sourceRateId: {
       type: mongoose.Schema.Types.ObjectId,

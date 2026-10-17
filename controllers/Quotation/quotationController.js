@@ -98,23 +98,44 @@ exports.manageQuotationDetails = async (req, res) => {
     let snapRate = null;
     let snapQty = req.body.qty || 1;
     let snapMocName = null;
+    let finalProduct = product;
+    let finalProductCategory = product_category;
 
     if (costingSheet) {
-      const sheet = await CostingSheetModel.findById(costingSheet).populate("line_items.moc", "name");
+      const sheet = await CostingSheetModel.findById(costingSheet)
+        .populate("product")
+        .populate("product_category")
+        .populate("moc");
+
       if (sheet) {
+        if (!finalProduct && sheet.product) {
+          finalProduct = sheet.product._id;
+        }
+        if (!finalProductCategory && sheet.product_category) {
+          finalProductCategory = sheet.product_category._id;
+        }
+
+        const itemName = sheet.product?.name || sheet.product_category?.name || "Costing Sheet Item";
+        const itemMoc = sheet.moc?.name || "";
+        const itemDesc = itemMoc ? `${itemName} (${itemMoc})` : itemName;
+        const itemAmount = sheet.amount || (sheet.qty * sheet.rate) || sheet.total || sheet.grandTotal || 0;
+
         finalSnapshot = {
-          items: sheet.line_items.map(item => ({
-            description: item.moc?.name || "Material",
-            qty: item.qty,
-            rate: item.rate,
-            amount: item.amount
-          })),
-          subtotal: sheet.subtotal,
-          wastage: sheet.wastage_percent,
-          freight: sheet.freight,
-          grand_total: sheet.total
+          items: [
+            {
+              description: itemDesc,
+              qty: sheet.qty || 1,
+              rate: sheet.rate || itemAmount,
+              amount: itemAmount,
+            }
+          ],
+          subtotal: itemAmount,
+          grand_total: itemAmount
         };
-        finalGrandTotal = finalSnapshot.grand_total;
+
+        if (!finalGrandTotal) {
+          finalGrandTotal = itemAmount;
+        }
       }
     } else if (sourceRateId) {
       const priceDoc = await PriceProductModel.findById(sourceRateId).populate("moc", "name");
@@ -151,8 +172,8 @@ exports.manageQuotationDetails = async (req, res) => {
     const quotation = await QuotationModel.create({
       quotation_no,
       client,
-      product,
-      product_category,
+      product: finalProduct || null,
+      product_category: finalProductCategory || null,
       sourceRateId,
       costingSheet,
       techSpec,
